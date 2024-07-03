@@ -33,11 +33,12 @@ func (s s3Bucket) List(region string) ([]BucketInfo, error) {
 		Credentials: credentials.NewStaticCredentials(s.accessKey, s.secretKey, ""),
 	}
 	awsConfig.Region = aws.String(region)
+	awsConfig.Endpoint = aws.String(fmt.Sprintf("http://cos.zz-%s.cos.tg.ncmp.unicom.local", region))
 	ses, err := session.NewSession(awsConfig)
 	if err != nil {
 		return nil, fmt.Errorf("fail to create aws session: %s", err)
 	}
-	ses.Handlers.Build.PushFront(object.DisableSha256Func)
+	// ses.Handlers.Build.PushFront(object.DisableSha256Func)
 	service := s3.New(ses)
 	listBuckets, err := service.ListBuckets(input)
 	if err1, ok := err.(awserr.Error); ok {

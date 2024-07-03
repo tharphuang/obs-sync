@@ -27,7 +27,7 @@ func (c cucBucket) Create(region string, name string) error {
 		HTTPClient:  object.GetHttpClient(),
 		Credentials: credentials.NewStaticCredentials(c.accessKey, c.secretKey, ""),
 		Region:      aws.String(region),
-		Endpoint:    aws.String(fmt.Sprintf("https://obs-%s.cucloud.cn", region)),
+		Endpoint:    aws.String(fmt.Sprintf("http://obs-%s.cucloud.cn", region)),
 	}
 	ses, err := session.NewSession(awsConfig)
 	if err != nil {

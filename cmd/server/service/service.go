@@ -594,13 +594,13 @@ func coverBucketDomain(t models.ResourceType, name string, region string) string
 	case models.Cos:
 		return fmt.Sprintf("%s.cos.%s.myqcloud.com", name, region)
 	case models.Cuc:
-		return fmt.Sprintf("%s.obs-%s.cucloud.cn", name, region)
+		return fmt.Sprintf("%s.obs-%s-internal.cucloud.cn", name, region)
 	case models.Obs:
 		return fmt.Sprintf("%s.obs.%s.myhuaweicloud.com", name, region)
 	case models.Oss:
 		return fmt.Sprintf("%s.%s.aliyuncs.com", name, region)
 	case models.S3:
-		return fmt.Sprintf("%s.%s.amazonaws.com", name, region)
+		return fmt.Sprintf("%s.cos.zz-%s.cos.tg.ncmp.unicom.local", name, region)
 	default:
 		return ""
 	}
