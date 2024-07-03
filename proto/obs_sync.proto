@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package sync;
+option go_package = "sync/pb";
+
+
+service Pipe{
+  rpc DataStream(stream DataRequest) returns (stream DataResponse) {}
+  rpc PutResult(Result)returns(Replay){}
+  rpc HasMore(Empty)returns(HasMoreReplay){}
+
+  rpc Sync(SyncInfo)returns(SyncReplay){}
+  rpc Start(Empty)returns(stream Status){}
+  rpc Stop(Empty)returns(StopResult){}
+  rpc Stat(Empty)returns(stream StatResult){}
+}
+
+// DataStream
+message DataRequest{
+  string sign = 1;
+}
+message UriInfo{
+  string type = 1;
+  string scheme = 2;
+  string BucketDomain = 3;
+  string accessKey = 4;
+  string secretKey = 5;
+}
+message Object{
+  string key = 1;
+  int64 size = 2;
+  int64 mtime = 3;
+  bool isDir = 4;
+}
+message TaskInfo{
+  string bucketName = 1;
+  UriInfo srcUri = 2;
+  UriInfo destUri = 3;
+  repeated Object objects = 4;
+}
+message DataResponse{
+  TaskInfo task = 1;
+}
+// PutResult
+message Result{
+  string bucketName = 1;
+  string workIP = 2;
+  repeated string success = 3;
+  repeated string failed = 4;
+  int64 deadlSize = 5;
+}
+message Replay{
+  string status = 1;
+}
+//HasMore
+message Empty {}
+message HasMoreReplay{
+  bool has = 1;
+}
+
+//Sync
+message Auth{
+  string type = 1;
+  string region = 2;
+  string accessKey = 3;
+  string secretKey = 4;
+}
+message SyncInfo{
+  Auth src = 1;
+  Auth dest = 2;
+}
+message SyncReplay{
+  string status = 1;
+  message Row{
+    repeated string cells =1;
+  }
+  repeated Row Buckets = 2;
+}
+
+//
+message Value{
+  int64 Scanned =1;
+  int64 Skipped =2;
+  int64 Copied =3;
+  int64 Failed =4;
+  int64 Size =5;
+  bool FinishFlag =6;
+}
+message Status{
+  Value value = 1;
+}
+
+message StopResult{
+  string TaskName = 1;
+  string status = 2;
+}
+
+message TaskStatus{
+  string bucket = 1;
+  string status = 2;
+  string summary = 3;
+}
+message StatReplay{
+  repeated TaskStatus taskStatus = 1;
+}
+
+message BucketSummary{
+  string name = 1;
+  int64 scan = 2;
+  int64 success  = 3;
+  int64 fail = 4;
+  bool finish = 5;
+}
+message StatResult{
+  Value value =1;
+  repeated BucketSummary bucketSummary= 2;
+}
+
+

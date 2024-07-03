@@ -1,0 +1,2 @@
+.vscode
+./pkg/cloudstorage/cloud_storage_test.go
