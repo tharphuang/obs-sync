@@ -1,2 +1,2 @@
 .vscode
-./pkg/cloudstorage/cloud_storage_test.go
+!pkg/cloudstorage/cloud_storage_test.go
