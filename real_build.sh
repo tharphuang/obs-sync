@@ -20,7 +20,7 @@ build() {
   cd -
   mv "${basePath}"/cmd/server/server build/bin/
 
-  go build -ldflags="-s -w" -o import "${basePath}/cmd/command"
+  go build -ldflags="-s -w" -o obsync "${basePath}/cmd/command"
   mv "${basePath}"/import build/bin/
 
   cp "${basePath}"/README.md build/README.md
