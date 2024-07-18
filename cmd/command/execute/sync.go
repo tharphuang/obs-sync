@@ -15,9 +15,9 @@ import (
 
 // 提交迁移任务 {ak}:{sk}@s3://region
 var submitCmd = &cobra.Command{
-	Use:   "obsync",
-	Short: "obsync task config file.",
-	Long:  "obsync task form the task config file.",
+	Use:   "sync",
+	Short: "sync task config file.",
+	Long:  "sync task form the task config file.",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) != 2 {
 			unpackGrpcError(cmd, args, errors.New("invalid args, expected two arguments, source uri and dest uri"))
@@ -71,6 +71,10 @@ var submitCmd = &cobra.Command{
 	},
 }
 
+//解析用户输入的uri
+/**
+ak:sk@cuc://nxyc , access_key:secret_key@云厂商类型://region名
+**/
 func parseUri(uriStr string) (*models.Uri, error) {
 	var (
 		uri        models.Uri

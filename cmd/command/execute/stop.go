@@ -19,7 +19,6 @@ var stopCmd = &cobra.Command{
 		// 	return
 		// }
 		fmt.Println("==> 已经暂停任务信息：")
-		//ExecSuccess(fmt.Sprintf("任务名称：%s,任务当前状态：%s", res.TaskName, res.Status))
 	},
 }
 

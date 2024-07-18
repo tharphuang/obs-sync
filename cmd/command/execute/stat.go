@@ -21,7 +21,7 @@ var StatCmd = &cobra.Command{
 		}
 
 		progress := utils.NewProgress(false, true)
-		Bucket := progress.AddCountBar("Finished buckets", 0)
+		Bucket := progress.AddCountBar("Synced buckets", 0)
 		Handled := progress.AddCountBar("Scanned objects", 0)
 		Copied := progress.AddCountSpinner("Copied objects")
 		CopiedBytes := progress.AddByteSpinner("Copied objects")

@@ -14,10 +14,10 @@ var (
 var versionCmd = &cobra.Command{
 	Use:     "version",
 	Aliases: []string{"v"},
-	Short:   "Print the version of ossImport",
-	Long:    "Print the version of ossImport...",
+	Short:   "print the version of obsync",
+	Long:    "print the version of obsync...",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Fprintln(os.Stdout, "CuCloudOssImport CLI Tool: "+VERSION)
+		fmt.Fprintln(os.Stdout, "obsync CLI Tool: "+VERSION)
 	},
 }
 

@@ -44,25 +44,6 @@ var startCmd = &cobra.Command{
 				ExecSuccess("对象同步已完成,无需同步")
 				return
 			}
-			// switch statsType {
-			// case models.Scanned:
-			// 	Handled.IncrTotal(1)
-			// case models.Skipped:
-			// 	Skipped.IncrInt64(statsValue)
-			// 	Handled.IncrInt64(statsValue)
-			// case models.Copied:
-			// 	Copied.SetCurrent(statsValue)
-			// 	Handled.SetCurrent(statsValue)
-			// case models.Failed:
-			// 	Failed.IncrInt64(statsValue)
-			// 	Handled.IncrInt64(statsValue)
-			// case models.Size:
-			// 	CopiedBytes.SetCurrent(statsValue)
-			// case models.Finish:
-			// 	time.Sleep(500 * time.Millisecond)
-			// 	ExecSuccess("对象同步已完成,无需同步")
-			// 	return
-			// }
 		}
 	},
 }
