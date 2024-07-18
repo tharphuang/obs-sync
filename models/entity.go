@@ -16,9 +16,9 @@ const (
 type Orientation int
 
 const (
-	TO   Orientation = 1
-	From Orientation = 2
-	All  Orientation = 3
+	To   Orientation = 1 // -->
+	From Orientation = 2 // <--
+	With Orientation = 3 // <->
 )
 
 // StatsType Handle:1, Skipped:10, Copied:11, Failed:100
@@ -93,11 +93,11 @@ type BucketOri struct {
 
 func (b BucketOri) Ori() string {
 	switch b.Orientation {
-	case TO:
+	case To:
 		return "==>"
 	case From:
 		return "<=="
-	case All:
+	case With:
 		return "<=>"
 	}
 	return ""

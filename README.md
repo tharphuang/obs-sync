@@ -12,13 +12,13 @@
 发起一个同步任务
 obsync 源ak:源sk@源云产品类型://源云区域  目的ak:目的sk@目的云产品类型://目的云区域
 ```
-./bin/import obsync ak:sk@cuc://nxyc  ak:sk@cuc://helf
+./bin/obsync sync ak:sk@cuc://nxyc  ak:sk@cuc://helf
 ```
 开始同步任务
 ```
-./bin/import start
+./bin/obsync start
 ```
 查看同步任务统计信息
 ```
-./bin/import stat
+./bin/onsync stat
 ```

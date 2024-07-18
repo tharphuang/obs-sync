@@ -18,7 +18,7 @@ var (
 func main() {
 	listen, err := net.Listen("tcp", ":50051")
 	if err != nil {
-		fmt.Println("server启动失败:", err.Error())
+		fmt.Printf("server listen failed, err:%s\n", err.Error())
 		return
 	}
 
@@ -28,6 +28,6 @@ func main() {
 	pb.RegisterPipeServer(server, pipeService)
 	reflection.Register(server)
 	if err = server.Serve(listen); err != nil {
-		fmt.Println("server启动失败:", err.Error())
+		fmt.Printf("server start failed, err:%s\n", err.Error())
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
 	"net"
 	"obs-sync/infra/log"
 	"obs-sync/models"
@@ -23,7 +22,7 @@ var (
 	storageMap sync.Map
 	logger     *log.Logger
 
-	svrIP   = flag.String("svr", "0.0.0.0", "servrIP")
+	svrIP   = flag.String("svr", "0.0.0.0", "servr IP")
 	logPath = flag.String("log", "", "log path")
 )
 
@@ -34,16 +33,14 @@ func main() {
 	//查询本机器IP
 	localIP, err := findLocalIP()
 	if err != nil {
-		logger.Error().Err(err).Msg("本机器IP查询失败,迁移节点client部署失败，请检查你的网络环境重新部署")
-		fmt.Println("error: 本机器IP查询有误，部署失败")
+		logger.Error().Err(err).Msg("get local IP failed.")
 		return
 	}
 
 	//客户端创建链接
 	conn, err := grpc.Dial(*svrIP+":50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		logger.Error().Err(err).Msg("server端连接创建失败")
-		fmt.Println("error: 迁移节点client无法连接到server端")
+		logger.Error().Err(err).Msg("server is not connected")
 		return
 	}
 	// 延迟关闭连接
@@ -58,8 +55,7 @@ func main() {
 	ctx := context.Background()
 	stream, err := client.DataStream(ctx)
 	if err != nil {
-		logger.Error().Err(err).Msg("创建server数据流失败")
-		fmt.Println("error: 迁移节点client无法连接到server端")
+		logger.Error().Err(err).Msg("server transport data stream error")
 		return
 	}
 
@@ -68,7 +64,7 @@ func main() {
 		// 接收从 服务端返回的数据流
 		recv, err := stream.Recv()
 		if err != nil {
-			logger.Error().Err(err).Msg("server数据流接收完成")
+			logger.Error().Err(err).Msg("server can't receive stream data")
 			break
 		}
 		logger.Info().Msgf("received task: %v", recv.Task)
@@ -82,13 +78,16 @@ func main() {
 				DeadlSize:  dealSize,
 			})
 			if err != nil {
-				logger.Error().Err(err).Msg("上传处理数据到管理节点失败")
+				logger.Error().Err(err).Msg("put task result failed")
 				return
 			}
-			logger.Info().Msgf("put result success, success:%v, failed:%v, dealSize:%d", success, failed, dealSize)
+			logger.Info().Msgf("put result success, success:%v, failed:%v, deal size:%d", success, failed, dealSize)
 		}
 		//查询是否还有数据
-		more, _ := client.HasMore(context.Background(), &pb.Empty{})
+		more, err := client.HasMore(context.Background(), &pb.Empty{})
+		if err != nil {
+			logger.Warn().Msgf("check task failed,error: %v", err)
+		}
 		if !more.Has {
 			time.Sleep(10 * time.Second)
 		}
@@ -129,20 +128,26 @@ func findLocalIP() (string, error) {
 			return ip.String(), nil
 		}
 	}
-	return "", errors.New("请检查设备是否联网")
+	return "", errors.New("findLocalIP:: network not running")
 }
 
 func doSync(task *pb.TaskInfo) (success []string, failed []string, dealSzie int64) {
 	var (
 		src, dst object.ObjectStorage
 	)
-
 	wg := sync.WaitGroup{}
 	lock := sync.Mutex{}
 	consumer := tube.NewConsumer(logger, len(task.Objects)/2)
-
-	src = createStorageCache(string(task.SrcUri.Type), task.SrcUri)
-	dst = createStorageCache(string(task.DestUri.Type), task.DestUri)
+	src, err := createStorageCache(string(task.SrcUri.Type), task.SrcUri)
+	if err != nil {
+		logger.Error().Msgf("dosync:: create storage failed, src:%s, err:%v", task.SrcUri, err)
+		return
+	}
+	dst, err = createStorageCache(string(task.DestUri.Type), task.DestUri)
+	if err != nil {
+		logger.Error().Msgf("dosync:: create storage failed, dest:%s,err:%v", task.DestUri, err)
+		return
+	}
 
 	for _, o := range task.Objects {
 		wg.Add(1)
@@ -151,16 +156,8 @@ func doSync(task *pb.TaskInfo) (success []string, failed []string, dealSzie int6
 			if o.Key == "" {
 				return
 			}
-			//dst.IsSetMd5(true)
-			if src == nil || dst == nil {
-				//failed = append(failed, &pipe.JobStatus{Id: "", Key: o.Key, Size: o.Size})
-				logger.Error().Msgf("对象构建失败,源:%s, 目的:%v", task.SrcUri, task.DestUri)
-				return
-			}
-
 			var acl models.CannedACLType
 			acl, _ = src.GetObjectAcl(o.Key)
-
 			start := time.Now()
 			obj := object.UnmarshalObject(map[string]interface{}{
 				"key":   o.Key,
@@ -175,26 +172,25 @@ func doSync(task *pb.TaskInfo) (success []string, failed []string, dealSzie int6
 				failed = append(failed, task.SrcUri.BucketDomain+"://"+o.Key)
 				dealSzie += o.Size
 				lock.Unlock()
-				logger.Error().Err(err).Msgf("对象迁移失败: obj_name:%s, cost_time:%s, mtime:%d, size:%d", obj.Key(), time.Since(start), o.Mtime, obj.Size())
+				logger.Error().Err(err).Msgf("dosync failed, obj_name:%s, cost_time:%s, mtime:%d, size:%d", obj.Key(), time.Since(start), o.Mtime, obj.Size())
 				return
 			} else {
 				lock.Lock()
 				success = append(success, task.SrcUri.BucketDomain+"://"+o.Key)
 				dealSzie += o.Size
 				lock.Unlock()
-				logger.Info().Msgf("对象迁移成功: obj_name:%s, cost_time:%s, mtime:%d, size:%d", obj.Key(), time.Since(start), o.Mtime, obj.Size())
+				logger.Info().Msgf("dosync success, obj_name:%s, cost_time:%s, mtime:%d, size:%d", obj.Key(), time.Since(start), o.Mtime, obj.Size())
 				return
 			}
 		}(o)
-		// 迁移配置设置
 	}
 	wg.Wait()
 	return
 }
 
 // 缓存
-func createStorageCache(t string, info *pb.UriInfo) object.ObjectStorage {
-	key := t + "-" + info.BucketDomain
+func createStorageCache(storageType string, info *pb.UriInfo) (object.ObjectStorage, error) {
+	key := storageType + "-" + info.BucketDomain
 	if v, ok := storageMap.Load(key); !ok {
 		infoModels := models.UriInfo{
 			Type:         models.ResourceType(info.Type),
@@ -205,10 +201,11 @@ func createStorageCache(t string, info *pb.UriInfo) object.ObjectStorage {
 		}
 		storage, err := cloudstorage.CreateStorage(infoModels)
 		if err != nil {
-			storageMap.Store(key, storage)
+			return nil, err
 		}
-		return storage
+		storageMap.Store(key, storage)
+		return storage, nil
 	} else {
-		return v.(object.ObjectStorage)
+		return v.(object.ObjectStorage), nil
 	}
 }

@@ -34,7 +34,7 @@ func (s *server) Stat(_ *pb.Empty, send pb.Pipe_StatServer) error {
 	for {
 		select {
 		case <-ctx.Done():
-			l.Info().Msg("start streaming has been discontinue")
+			l.Info().Msg("stat streaming has been discontinue")
 			return nil
 		default:
 			value := pb.Value{}
@@ -53,7 +53,6 @@ func (s *server) Stat(_ *pb.Empty, send pb.Pipe_StatServer) error {
 					Fail:    stat.Failed,
 					Finish:  stat.FinishFlag,
 				})
-				//buckets.
 				return true
 			})
 			err := send.Send(&pb.StatResult{
@@ -75,23 +74,23 @@ func (s *server) DataStream(stream pb.Pipe_DataStreamServer) error {
 	for {
 		select {
 		case <-ctx.Done():
-			l.Info().Msg("收到客户端通过context发出的终止信号")
+			l.Info().Msg("DataStream:: client context closed signal.")
 			return ctx.Err()
 		default:
 			// 接收从客户端发来的消息 输入,
 			recv, err := stream.Recv()
 			if err == io.EOF {
-				l.Info().Msg("客户端发送的数据流结束")
+				l.Info().Msg("DataStream:: client io eof.")
 				return nil
 			}
 			if err != nil {
-				l.Error().Err(err).Msg("迁移客户端异常，无法接收返回数据")
+				l.Error().Err(err).Msg("DataStream:: client unavailable.")
 				return err
 			}
 			// 如果接收正常，则根据接收到的 字符串 执行相应的指令
 			switch recv.Sign {
 			case "close":
-				l.Info().Msg("收到'结束对话'指令")
+				l.Info().Msg("DataStream:: receive close signal")
 				if err := stream.Send(&pb.DataResponse{Task: nil}); err != nil {
 					return err
 				}
@@ -157,13 +156,13 @@ func (s *server) PutResult(ctx context.Context, r *pb.Result) (*pb.Replay, error
 		newVule.Size += r.DeadlSize
 		if newVule.Copied+newVule.Failed == newVule.Scanned {
 			newVule.FinishFlag = true
+			l.Info().Msgf("put result: bucket:%s sync finished.", r.BucketName)
 		}
-		l.Info().Msgf("put result: bucket:%s sync finished.", r.BucketName)
 		Stats.Store(r.BucketName, newVule)
 	} else {
 		return &pb.Replay{Status: "-1"}, errors.New("bucket stat not found")
 	}
-	l.Info().Msgf("worker:%s success:%v failed:%v", r.WorkIP, r.Success, r.Failed)
+	l.Info().Msgf("put result: worker:%s success:%v failed:%v", r.WorkIP, r.Success, r.Failed)
 	return &pb.Replay{Status: "0"}, nil
 }
 
@@ -174,7 +173,7 @@ func (s *server) Start(_ *pb.Empty, send pb.Pipe_StartServer) error {
 	if !IsRunning {
 		for _, r := range SyncInfo.BucketRanks {
 			switch r.Orientation {
-			case models.TO:
+			case models.To:
 				err := bucket.BucketStorage(SyncInfo.DestUri.Type, SyncInfo.DestUri.AccessKey, SyncInfo.DestUri.SecretKey).Create(SyncInfo.DestUri.Region, r.Name)
 				if err != nil {
 					l.Error().Msgf("error creating info: %v ,bucket: %s ,err: %v", SyncInfo.DestUri, r.Name, err)
@@ -188,13 +187,13 @@ func (s *server) Start(_ *pb.Empty, send pb.Pipe_StartServer) error {
 					continue
 				}
 				go listAllObj(SyncInfo.DestUri, SyncInfo.SrcUri, r)
-			case models.All:
+			case models.With:
 				go syncObj(r)
 			}
 		}
 		IsRunning = true
 	} else {
-		return errors.New("sync task is running,you can use stat to check")
+		return errors.New("sync task is running, you can use stat to check")
 	}
 
 	for {
@@ -208,7 +207,7 @@ func (s *server) Start(_ *pb.Empty, send pb.Pipe_StartServer) error {
 				stats := v.(models.Stats)
 				value.Scanned += stats.Scanned
 				value.Copied += stats.Copied
-				value.Failed += stats.Copied
+				value.Failed += stats.Failed
 				value.Size += stats.Size
 				value.Skipped += stats.Skipped
 				return true
@@ -225,7 +224,7 @@ func (s *server) Start(_ *pb.Empty, send pb.Pipe_StartServer) error {
 
 // Stop implements pb.PipeServer.
 func (s *server) Stop(context.Context, *pb.Empty) (*pb.StopResult, error) {
-	panic("unimplemented")
+	return nil, errors.New("unimplemented")
 }
 
 // Sync implements pb.PipeServer.
@@ -561,7 +560,7 @@ func rankBuckets(src, dest []bucket.BucketInfo, sType, dType models.ResourceType
 	if len(dest) == 0 {
 		for _, s := range dest {
 			domain := coverBucketDomain(dType, s.Name, dRegion)
-			res = append(res, models.BucketOri{SrcBucket: s.Domain, Orientation: models.TO, DestBucket: domain, Name: s.Name})
+			res = append(res, models.BucketOri{SrcBucket: s.Domain, Orientation: models.To, DestBucket: domain, Name: s.Name})
 		}
 		return
 	}
@@ -573,7 +572,7 @@ func rankBuckets(src, dest []bucket.BucketInfo, sType, dType models.ResourceType
 	for _, d := range dest {
 		domain := coverBucketDomain(sType, d.Name, sRegion)
 		if mapSrc[d.Name] {
-			res = append(res, models.BucketOri{SrcBucket: domain, Orientation: models.All, DestBucket: d.Domain, Name: d.Name})
+			res = append(res, models.BucketOri{SrcBucket: domain, Orientation: models.With, DestBucket: d.Domain, Name: d.Name})
 			mapSrc[d.Name] = false
 		} else {
 			res = append(res, models.BucketOri{SrcBucket: domain, Orientation: models.From, DestBucket: d.Domain, Name: d.Name})
@@ -583,7 +582,7 @@ func rankBuckets(src, dest []bucket.BucketInfo, sType, dType models.ResourceType
 		if v {
 			s := coverBucketDomain(sType, n, sRegion)
 			d := coverBucketDomain(dType, n, dRegion)
-			res = append(res, models.BucketOri{SrcBucket: s, Orientation: models.TO, DestBucket: d, Name: n})
+			res = append(res, models.BucketOri{SrcBucket: s, Orientation: models.To, DestBucket: d, Name: n})
 		}
 	}
 	return res
@@ -600,7 +599,7 @@ func coverBucketDomain(t models.ResourceType, name string, region string) string
 	case models.Oss:
 		return fmt.Sprintf("%s.%s.aliyuncs.com", name, region)
 	case models.S3:
-		return fmt.Sprintf("%s.cos.zz-%s.cos.tg.ncmp.unicom.local", name, region)
+		return fmt.Sprintf("%s.%s.amazonaws.com", name, region)
 	default:
 		return ""
 	}
